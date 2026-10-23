@@ -60,9 +60,6 @@ HTTP 400; oversized bodies return 413 and non-JSON requests return 415.
 
 ## Deploy
 
-For a Python 2.7 runtime, use the separate [Python 2 version](python2/README.md).
-Its deployment commands bind to port 8080.
-
 Install `requirements.txt` and use this start command on your hosting service:
 
 ```sh
