@@ -50,10 +50,9 @@ class ComputeTests(unittest.TestCase):
             ('/api/pi', []),
         ]
         for route, payload in cases:
-            with self.subTest(route=route, payload=payload):
-                response = self.client.post(route, json=payload)
-                self.assertEqual(response.status_code, 400)
-                self.assertIn('error', response.get_json())
+            response = self.client.post(route, json=payload)
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('error', response.get_json())
 
     def test_http_errors_are_json(self):
         response = self.client.post('/api/stats', data='{', content_type='application/json')

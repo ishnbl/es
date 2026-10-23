@@ -1,19 +1,23 @@
 """Stateless compute API. All request data stays in memory for that request."""
 
+from __future__ import division
+
 import math
 import os
 import random
-import statistics
-import time
+import statistics_compat as statistics
+from timeit import default_timer
 
-from flask import Flask, jsonify, render_template, request
-from werkzeug.exceptions import HTTPException
+from flask import Flask, json, jsonify, render_template, request
+from werkzeug.exceptions import HTTPException, UnsupportedMediaType
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 1_000_000
+app.config['MAX_CONTENT_LENGTH'] = 1000000
 
 
 def body():
+    if not request.is_json:
+        raise UnsupportedMediaType('Send Content-Type: application/json.')
     data = request.get_json()
     if not isinstance(data, dict):
         raise ValueError('Send a JSON object.')
@@ -25,10 +29,10 @@ def numbers(value, limit=10000):
         raise ValueError('Expected a list of 1 to {} numbers.'.format(limit))
     result = []
     for item in value:
-        if type(item) not in (int, float):
+        if type(item) not in (int, long, float):
             raise ValueError('Values must be finite numbers, not strings or booleans.')
         number = float(item)
-        if not math.isfinite(number) or abs(number) > 1e100:
+        if not (not math.isnan(number) and not math.isinf(number)) or abs(number) > 1e100:
             raise ValueError('Numbers must be finite and have magnitude at most 1e100.')
         result.append(number)
     return result
@@ -43,22 +47,22 @@ def invalid_input(error):
 @app.errorhandler(HTTPException)
 def http_error(error):
     response = error.get_response()
-    response.data = app.json.dumps({'error': error.description})
+    response.data = json.dumps({'error': error.description})
     response.content_type = 'application/json'
     return response
 
 
-@app.get('/')
+@app.route('/', methods=['GET'])
 def index():
     return render_template('index.html')
 
 
-@app.get('/health')
+@app.route('/health', methods=['GET'])
 def health():
     return jsonify(status='ok')
 
 
-@app.post('/api/stats')
+@app.route('/api/stats', methods=['POST'])
 def stats():
     values = numbers(body().get('numbers'))
     return jsonify(
@@ -69,7 +73,7 @@ def stats():
     )
 
 
-@app.post('/api/solve')
+@app.route('/api/solve', methods=['POST'])
 def solve():
     """Solve Ax=b using Gaussian elimination with partial pivoting."""
     data = body()
@@ -87,46 +91,46 @@ def solve():
         if scale == 0:
             raise ValueError('Matrix has no unique solution.')
         rows[i] = [value / scale for value in row] + [vector[i] / scale]
-    for col in range(size):
-        pivot = max(range(col, size), key=lambda i: abs(rows[i][col]))
+    for col in xrange(size):
+        pivot = max(xrange(col, size), key=lambda i: abs(rows[i][col]))
         if abs(rows[pivot][col]) < 1e-12:
             raise ValueError('Matrix is singular or too ill-conditioned to solve.')
         rows[col], rows[pivot] = rows[pivot], rows[col]
-        for i in range(col + 1, size):
+        for i in xrange(col + 1, size):
             factor = rows[i][col] / rows[col][col]
-            for j in range(col, size + 1):
+            for j in xrange(col, size + 1):
                 rows[i][j] -= factor * rows[col][j]
     solution = [0.0] * size
-    for i in range(size - 1, -1, -1):
-        remainder = math.fsum(rows[i][j] * solution[j] for j in range(i + 1, size))
+    for i in xrange(size - 1, -1, -1):
+        remainder = math.fsum(rows[i][j] * solution[j] for j in xrange(i + 1, size))
         solution[i] = (rows[i][size] - remainder) / rows[i][i]
-    if not all(math.isfinite(value) for value in solution):
+    if not all((not math.isnan(value) and not math.isinf(value)) for value in solution):
         raise ValueError('Solution exceeds floating-point range.')
     return jsonify(solution=solution)
 
 
-@app.post('/api/pi')
+@app.route('/api/pi', methods=['POST'])
 def estimate_pi():
     data = body()
     samples = data.get('samples', 100000)
     seed = data.get('seed', 42)
-    if type(samples) is not int or not 1 <= samples <= 1000000:
+    if type(samples) not in (int, long) or not 1 <= samples <= 1000000:
         raise ValueError('samples must be an integer between 1 and 1000000.')
-    if type(seed) is not int or not -(2**63) <= seed < 2**63:
+    if type(seed) not in (int, long) or not -(2**63) <= seed < 2**63:
         raise ValueError('seed must be a signed 64-bit integer.')
     rng = random.Random(seed)
-    started = time.perf_counter()
+    started = default_timer()
     inside = 0
-    for _ in range(samples):
+    for _ in xrange(samples):
         x, y = rng.random(), rng.random()
         inside += x*x + y*y <= 1
     estimate = 4 * inside / samples
     return jsonify(
         samples=samples, seed=seed, estimate=estimate,
         absolute_error=abs(estimate - math.pi),
-        elapsed_ms=round((time.perf_counter() - started) * 1000, 3),
+        elapsed_ms=round((default_timer() - started) * 1000, 3),
     )
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', '5000')))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', '8080')))
