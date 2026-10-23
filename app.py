@@ -6,7 +6,7 @@ import random
 import statistics
 import time
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__)
@@ -50,15 +50,7 @@ def http_error(error):
 
 @app.get('/')
 def index():
-    return jsonify(
-        name='Compute lab',
-        endpoints={
-            'GET /health': 'Health check',
-            'POST /api/stats': {'numbers': [1, 2, 3, 4]},
-            'POST /api/solve': {'matrix': [[2, 1], [1, -1]], 'vector': [5, 1]},
-            'POST /api/pi': {'samples': 100000, 'seed': 42},
-        },
-    )
+    return render_template('index.html')
 
 
 @app.get('/health')

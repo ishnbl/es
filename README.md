@@ -17,7 +17,8 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open http://localhost:5000 for the endpoint list. Set `PORT` to change the local
+Open http://localhost:5000 for the API tester. Each endpoint has a form with
+example inputs and displays its response, HTTP status, and request duration. Set `PORT` to change the local
 port. For a deployment-style run on Linux:
 
 ```sh
@@ -57,32 +58,17 @@ matrices and normalized pivots below `1e-12`; it is a small floating-point demo,
 not a scientific linear algebra package. Bad inputs return JSON errors with
 HTTP 400; oversized bodies return 413 and non-JSON requests return 415.
 
-## Deploy with Gasper
+## Deploy
 
-This follows the build/run command approach in
-[Gasper's Flask example](https://gasper-docs.netlify.app/examples/applications/python-flask/).
-
-1. Push these project files to a Git repository accessible to your Gasper instance.
-2. In `gasper-deploy.json`, replace the repository URL, branch, and application password.
-3. Start Gasper and obtain a login token as described in its
-   [quick start](https://gasper-docs.netlify.app/quick-start/).
-4. Set your token and submit the deployment:
+Install `requirements.txt` and use this start command on your hosting service:
 
 ```sh
-export GASPER_TOKEN='YOUR_LOGIN_TOKEN'
-curl --fail-with-body -X POST http://localhost:3000/apps/python3 \
-  -H "Authorization: Bearer $GASPER_TOKEN" \
-  -H 'Content-Type: application/json' \
-  --data-binary @gasper-deploy.json
+gunicorn --bind "0.0.0.0:${PORT:-5000}" --workers 2 --access-logfile - app:app
 ```
 
-Use `http://HOST_IP:CONTAINER_PORT/health` with the `host_ip` and `container_port`
-from Gasper's response. The app listens inside the container on port 5000.
-The Gasper Python image must provide Python 3.9+ for these dependencies.
-
-Gasper manages its own infrastructure dependencies separately. This project
-does not create or connect to a database. The deployment payload is based on
-the documentation; an actual Gasper deployment has not been tested here.
+Use Python 3.9 or newer. Include the `templates/` and `static/` directories when
+deploying. The HTML page and API share the same server, with no frontend build
+step or database setup. `GET /health` is available for health checks.
 
 ## Tests
 
